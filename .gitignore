@@ -1,0 +1,17 @@
+# Environment variables
+.env
+*.env
+Backend/.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Generated files
+Backend/outputs/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
