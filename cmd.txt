@@ -1,0 +1,7 @@
+for run the frontend -> npm run dev
+
+for run the backend -> python app.py
+
+installing the pakage
+pip install -r requirements.txt
+npm install
