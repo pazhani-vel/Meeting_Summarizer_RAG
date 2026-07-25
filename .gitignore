@@ -9,7 +9,7 @@ __pycache__/
 .venv/
 venv/
 
-# Generated files
+# Generated backend output
 Backend/outputs/
 
 # Frontend
