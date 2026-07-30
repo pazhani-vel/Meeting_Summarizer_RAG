@@ -10,7 +10,7 @@ python-dotenv==1.1.1
 # Speech-to-Text
 # ==========================
 faster-whisper==1.2.0
-ffmpeg
+imageio-ffmpeg==0.5.1
 
 # ==========================
 # LangChain
