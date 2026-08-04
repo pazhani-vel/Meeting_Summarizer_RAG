@@ -41,3 +41,9 @@ groq==0.31.0
 numpy==2.3.2
 requests==2.32.5
 tqdm==4.67.1
+
+
+# ==========================
+# For Voice diagnosis
+# ==========================
+pyannote.audio==3.3.2
