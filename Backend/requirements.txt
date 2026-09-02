@@ -44,6 +44,13 @@ tqdm==4.67.1
 
 
 # ==========================
-# For Voice diagnosis
+# PyTorch / Audio
 # ==========================
-pyannote.audio==3.3.2
+torch==2.9.0
+torchaudio==2.9.0
+pyannote.audio==4.0.7
+
+# ==========================
+# Speaker Diarization
+# ==========================
+speechbrain==1.1.1

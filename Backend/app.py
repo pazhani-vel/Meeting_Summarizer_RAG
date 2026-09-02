@@ -8,7 +8,9 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 import config
-from services import transcription, chunking, summarizer
+from services import transcription, chunking, summarizer, diarization
+from services.speaker_transcript import create_speaker_transcript
+from services.speaker_transcript import format_speaker_transcript
 from models.vectorstore import VectorStore
 from models.embedding import EmbeddingManager
 from models.rag_retrieval import RAGRetriever
@@ -80,15 +82,52 @@ def upload_video():
         out_dir
         )
 
+        print("Transcribing audio...")
+
         result = transcription.transcribe_audio(audio_path)
+
         transcript_text = result["text"]
 
-        # 2. Chunk + embed + store
+        print("Transcription completed.")
+
+        # ---------------------------------------
+        # Speaker diarization
+        # ---------------------------------------
+
+        print("Detecting speakers...")
+
+        speaker_segments = diarization.diarize_audio(audio_path)
+
+        print("Speaker diarization completed.")
+
+        # ---------------------------------------
+        # Combine Whisper + Pyannote
+        # ---------------------------------------
+
+        speaker_transcript = create_speaker_transcript(
+            result,
+            speaker_segments
+        )
+
+        speaker_transcript_text = format_speaker_transcript(
+            speaker_transcript
+        )
+
+        print(speaker_transcript)
+
+        print("Speaker transcript created.")
+
+        # ---------------------------------------
+        # Chunk speaker-aware transcript
+        # ---------------------------------------
+
         chunks = chunking.chunk_transcript(
-            transcript_text,
+            speaker_transcript_text,
             video_id,
             filename
         )
+
+        print(f"Created {len(chunks)} chunks.")
 
         # Documents for ChromaDB
         texts = [
@@ -113,7 +152,7 @@ def upload_video():
         )
 
         # 3. Summarize
-        summary = summarizer.summarize_transcript(transcript_text)
+        summary = summarizer.summarize_transcript(speaker_transcript_text)
 
         print("Got the Summary..")
 
@@ -125,6 +164,14 @@ def upload_video():
             encoding="utf-8"
         ) as f:
             f.write(transcript_text)
+
+        # Save speaker-aware transcript
+        with open(
+            os.path.join(out_dir, "speaker_transcript.txt"),
+            "w",
+            encoding="utf-8"
+        ) as f:
+            f.write(speaker_transcript_text)
 
         # Save summary
         with open(
@@ -139,7 +186,13 @@ def upload_video():
             **summary
             },f,indent=4)
 
-        return jsonify({"status": "success", "video_id": video_id, **summary}), 200
+        return jsonify({
+            "status": "success",
+            "video_id": video_id,
+            "filename": filename,
+            "diarization": speaker_transcript,
+            **summary
+        }), 200
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -192,4 +245,4 @@ def health():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
