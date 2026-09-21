@@ -12,6 +12,10 @@ venv/
 # Generated backend output
 Backend/outputs/
 
+# Backend data (videos, models, vector DB)
+Backend/data/
+Backend/pretrained_models/
+
 # Frontend
 frontend/node_modules/
 frontend/dist/

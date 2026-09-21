@@ -21,11 +21,13 @@ export default function VideoPanel({
   setPreviewUrl,
   videoRef,
   setCurrentTime,
+  onUploadStart,
 }) {
   const [file, setFile] = useState(null);
   const [dragActive, setDragActive] = useState(false);
   const [error, setError] = useState(null);
   const [activeStep, setActiveStep] = useState(0);
+  const [displayName, setDisplayName] = useState("");
   const inputRef = useRef(null);
 
   const pickFile = (selected) => {
@@ -36,6 +38,7 @@ export default function VideoPanel({
     }
     setError(null);
     setFile(selected);
+    setDisplayName(selected.name);
     setSummary(null);
     setVideoId(null);
     setTranscript([]);
@@ -47,11 +50,11 @@ export default function VideoPanel({
     if (!file) return;
 
     try {
+      if (onUploadStart) onUploadStart();
       setUploading(true);
       setError(null);
       setActiveStep(0);
 
-      // Simulate step progression
       const stepInterval = setInterval(() => {
         setActiveStep((prev) => {
           if (prev >= PROCESSING_STEPS.length - 1) return prev;
@@ -64,36 +67,21 @@ export default function VideoPanel({
       clearInterval(stepInterval);
 
       setSummary(data);
-      setVideoId(data.video_id);
+      setVideoId(data.meeting_id || data.video_id);
       if (data.diarization) {
         setTranscript(data.diarization);
       }
+      setDisplayName(data.filename || file.name);
     } catch (err) {
       console.error(err);
       setError(
         err.response?.data?.message ||
-          "Unable to process this video. Please try again."
+          "Unable to process this video. Please try again.",
       );
     } finally {
       setUploading(false);
       setActiveStep(0);
     }
-  };
-
-  const handleRemove = () => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.removeAttribute("src");
-      videoRef.current.load();
-    }
-    setFile(null);
-    setPreviewUrl(null);
-    setSummary(null);
-    setVideoId(null);
-    setTranscript([]);
-    setCurrentTime(0);
-    setError(null);
-    if (inputRef.current) inputRef.current.value = "";
   };
 
   const handleTimeUpdate = () => {
@@ -103,28 +91,15 @@ export default function VideoPanel({
   };
 
   return (
-    <div className="panel video-panel">
-      <div className="panel-header">
-        <div className="panel-title">
-          <span className="panel-eyebrow">01 · Video</span>
-          <span className="panel-heading">Meeting recording</span>
-        </div>
-      </div>
-
+    <div className="video-panel">
+      {/* Dropzone (when no video) */}
       {!previewUrl && (
         <>
           <label
             className={`dropzone ${dragActive ? "active" : ""}`}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setDragActive(true);
-            }}
+            onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragLeave={() => setDragActive(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragActive(false);
-              pickFile(e.dataTransfer.files?.[0]);
-            }}
+            onDrop={(e) => { e.preventDefault(); setDragActive(false); pickFile(e.dataTransfer.files?.[0]); }}
           >
             <input
               ref={inputRef}
@@ -134,15 +109,14 @@ export default function VideoPanel({
               hidden
             />
             <div className="dropzone-icon">🎥</div>
-            <p className="dropzone-title">Drag & drop your video here</p>
-            <p className="dropzone-sub">
-              or <span>browse files</span>
-            </p>
+            <p className="dropzone-title">Drag & drop your meeting video here</p>
+            <p className="dropzone-sub">or <span>browse files</span></p>
             <p className="dropzone-sub">MP4, WebM, MOV, MKV, AVI</p>
           </label>
         </>
       )}
 
+      {/* Video player */}
       {previewUrl && (
         <div className="video-area">
           <div className="video-player-container">
@@ -155,54 +129,46 @@ export default function VideoPanel({
           </div>
           <div className="video-controls">
             <div className="video-file-info">
-              <span
-                className="dot"
-                data-state={uploading ? "busy" : "ready"}
-              />
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {file?.name}
+              <span className="dot" data-state={uploading ? "busy" : "ready"} />
+              <span className="video-file-name">
+                {displayName || file?.name || "Video"}
               </span>
             </div>
-            {!uploading && (
-              <button className="remove-btn" onClick={handleRemove}>
-                Remove Video
-              </button>
-            )}
           </div>
         </div>
       )}
 
+      {/* Processing steps */}
       {uploading && (
         <div className="processing-steps">
-          {PROCESSING_STEPS.map((step, i) => (
+          <div className="processing-steps-track">
+            {PROCESSING_STEPS.map((step, i) => (
+              <div
+                key={step}
+                className={`processing-step ${
+                  i < activeStep ? "done" : i === activeStep ? "active" : ""
+                }`}
+              >
+                <span className="step-icon">
+                  {i < activeStep ? "✓" : i === activeStep ? "⟳" : (i + 1)}
+                </span>
+                <span className="step-label">{step}</span>
+              </div>
+            ))}
+          </div>
+          <div className="processing-progress">
             <div
-              key={step}
-              className={`processing-step ${
-                i < activeStep ? "done" : i === activeStep ? "active" : ""
-              }`}
-            >
-              <span className="step-icon">
-                {i < activeStep ? "✓" : i === activeStep ? "⟳" : ""}
-              </span>
-              <span>{step}</span>
-            </div>
-          ))}
+              className="processing-progress-bar"
+              style={{ width: `${((activeStep + 1) / PROCESSING_STEPS.length) * 100}%` }}
+            />
+          </div>
         </div>
       )}
 
-      {previewUrl && (
-        <button
-          className="upload-btn"
-          onClick={handleUpload}
-          disabled={uploading}
-        >
-          {uploading ? (
-            <>
-              <span className="spinner" /> Processing...
-            </>
-          ) : (
-            "Analyze this video"
-          )}
+      {/* Upload button */}
+      {previewUrl && !uploading && file && (
+        <button className="btn-upload" onClick={handleUpload} disabled={uploading}>
+          Analyze This Video
         </button>
       )}
 

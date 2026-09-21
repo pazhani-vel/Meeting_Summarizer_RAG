@@ -22,5 +22,5 @@ def chunk_transcript(text: str, video_id: str, filename: str):
         for i, chunk in enumerate(raw_chunks)
     ]
 
-    print(f"{filename}: transcript → {len(chunks)} chunks")
+    print(f"{filename}: transcript -> {len(chunks)} chunks")
     return chunks

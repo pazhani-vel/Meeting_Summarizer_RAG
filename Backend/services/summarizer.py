@@ -1,4 +1,5 @@
 import json
+import traceback
 from langchain_groq import ChatGroq
 import config
 
@@ -29,15 +30,44 @@ Transcript:
 {transcript}
 """
 
-def summarize_transcript(transcript: str) -> dict:
-    llm = get_llm()
 
-    # crude word-count gate for map-reduce; ~10k words ≈ full hour lecture
-    word_count = len(transcript.split())
-    if word_count <= 3000:
-        return _summarize_single(transcript, llm)
-    else:
-        return _summarize_map_reduce(transcript, llm)
+def _fallback_summary(transcript: str) -> dict:
+    """Return a best-effort summary when the LLM is unavailable."""
+    # Extract a short preview from the transcript for context
+    preview = transcript.strip()[:500] if transcript else ""
+    return {
+        "summary": f"Summary generation is temporarily unavailable (API connection error). Transcript preview: {preview}..." if preview else "No speech content was detected in the video.",
+        "key_topics": [],
+        "action_items": [],
+    }
+
+
+def summarize_transcript(transcript: str) -> dict:
+    # Handle empty or whitespace-only transcript
+    if not transcript or not transcript.strip():
+        return {
+            "summary": "No speech content was detected in the video.",
+            "key_topics": [],
+            "action_items": [],
+        }
+
+    try:
+        llm = get_llm()
+    except Exception as e:
+        print(f"Warning: Could not initialize LLM: {e}")
+        return _fallback_summary(transcript)
+
+    try:
+        # crude word-count gate for map-reduce; ~10k words ≈ full hour lecture
+        word_count = len(transcript.split())
+        if word_count <= 3000:
+            return _summarize_single(transcript, llm)
+        else:
+            return _summarize_map_reduce(transcript, llm)
+    except Exception as e:
+        print(f"Warning: LLM summarization failed: {e}")
+        traceback.print_exc()
+        return _fallback_summary(transcript)
 
 
 def _summarize_single(transcript: str, llm) -> dict:

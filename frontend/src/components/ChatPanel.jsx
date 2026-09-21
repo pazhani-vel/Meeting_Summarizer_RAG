@@ -2,6 +2,13 @@ import { useEffect, useRef, useState } from "react";
 
 import { askQuestion } from "../services/api";
 
+const SUGGESTED_QUESTIONS = [
+  "What were the main decisions?",
+  "What action items were discussed?",
+  "Summarize the key points",
+  "Who spoke the most?",
+];
+
 export default function ChatPanel({ videoId, status, messages, setMessages }) {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
@@ -14,34 +21,26 @@ export default function ChatPanel({ videoId, status, messages, setMessages }) {
     }
   }, [messages, loading]);
 
-  const sendQuestion = async () => {
-    if (!question.trim() || !ready || loading) return;
+  const sendQuestion = async (text) => {
+    const q = text || question.trim();
+    if (!q || !ready || loading) return;
 
-    const userMessage = { sender: "user", text: question };
+    const userMessage = { sender: "user", text: q };
     setMessages((prev) => [...prev, userMessage]);
     setQuestion("");
     setLoading(true);
 
     try {
-      const data = await askQuestion(videoId, userMessage.text);
-
+      const data = await askQuestion(videoId, q);
       setMessages((prev) => [
         ...prev,
-        {
-          sender: "bot",
-          text: data.answer,
-          sources: data.sources || [],
-        },
+        { sender: "bot", text: data.answer, sources: data.sources || [] },
       ]);
     } catch (error) {
       console.error(error);
       setMessages((prev) => [
         ...prev,
-        {
-          sender: "bot",
-          text: "Unable to get an answer. Please try again.",
-          sources: [],
-        },
+        { sender: "bot", text: "Unable to get an answer. Please try again.", sources: [] },
       ]);
     } finally {
       setLoading(false);
@@ -49,43 +48,45 @@ export default function ChatPanel({ videoId, status, messages, setMessages }) {
   };
 
   return (
-    <div className="panel chat-panel">
+    <>
       <div className="panel-header">
         <div className="panel-title">
-          <span className="panel-eyebrow">05 · Chat</span>
-          <span className="panel-heading">Ask about the meeting</span>
+          <span className="panel-eyebrow">Chat</span>
+          <span className="panel-heading">Meeting Chatbot</span>
         </div>
       </div>
 
-      <div className="panel-body chat-messages" ref={scrollRef}>
+      <div className="chat-messages" ref={scrollRef}>
         {messages.length === 0 && (
           <div className="chat-placeholder">
             <div className="chat-placeholder-icon">💬</div>
             {ready ? (
               <>
-                <p className="chat-placeholder-title">
-                  Ask anything about this meeting
-                </p>
+                <div className="chat-placeholder-title">Ask anything about this meeting</div>
                 <div className="chat-placeholder-examples">
-                  Examples:
-                  <br />• What was discussed?
-                  <br />• What decisions were made?
-                  <br />• Who discussed the project?
-                  <br />• What are the action items?
+                  {SUGGESTED_QUESTIONS.map((q) => (
+                    <div
+                      key={q}
+                      style={{ cursor: "pointer", padding: "3px 0" }}
+                      onClick={() => sendQuestion(q)}
+                    >
+                      • {q}
+                    </div>
+                  ))}
                 </div>
               </>
             ) : (
               <>
-                <p className="chat-placeholder-title">
+                <div className="chat-placeholder-title">
                   {status === "processing"
-                    ? "Processing your meeting..."
-                    : "Process a meeting video before asking questions."}
-                </p>
-                <p className="chat-placeholder-sub">
+                    ? "Processing your meeting…"
+                    : "No meeting loaded"}
+                </div>
+                <div className="chat-placeholder-sub">
                   {status === "processing"
                     ? "The chat will unlock once processing is complete."
-                    : "Upload and analyze a video to start asking questions."}
-                </p>
+                    : "Upload a video to start chatting."}
+                </div>
               </>
             )}
           </div>
@@ -100,9 +101,7 @@ export default function ChatPanel({ videoId, status, messages, setMessages }) {
             <span className="chat-avatar">AI</span>
             <div className="chat-bubble">
               <div className="thinking-dots">
-                <span />
-                <span />
-                <span />
+                <span /><span /><span />
               </div>
             </div>
           </div>
@@ -113,25 +112,21 @@ export default function ChatPanel({ videoId, status, messages, setMessages }) {
         <input
           className="chat-input"
           type="text"
-          placeholder={
-            ready ? "Ask a question..." : "Upload a video to start chatting"
-          }
+          placeholder={ready ? "Ask a question…" : "Upload a video to start chatting"}
           value={question}
           disabled={!ready}
           onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") sendQuestion();
-          }}
+          onKeyDown={(e) => { if (e.key === "Enter") sendQuestion(); }}
         />
         <button
-          className="chat-send-btn"
-          onClick={sendQuestion}
+          className="btn-send"
+          onClick={() => sendQuestion()}
           disabled={!ready || !question.trim() || loading}
         >
           Send
         </button>
       </div>
-    </div>
+    </>
   );
 }
 

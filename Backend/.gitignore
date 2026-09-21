@@ -1,1 +1,6 @@
 .env
+
+# Data directories
+/data/
+/pretrained_models/
+/outputs/
