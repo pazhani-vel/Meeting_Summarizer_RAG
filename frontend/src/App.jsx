@@ -12,6 +12,8 @@ import SummaryPanel from "./components/SummaryPanel";
 import ChatPanel from "./components/ChatPanel";
 import TrackingPanel from "./components/TrackingPanel";
 
+import { generateMeetingReportPDF } from "./utils/generateReportPDF";
+
 import {
   getMeetings,
   getMeeting,
@@ -156,7 +158,7 @@ function LandingView({ onNavigateToUpload }) {
 // Workspace View (video + panels)
 // ═══════════════════════════════════════════════════════════
 
-function WorkspaceView({
+export function WorkspaceView({
   uploading,
   setUploading,
   summary,
@@ -177,6 +179,18 @@ function WorkspaceView({
 }) {
   const duration = meetingDetail?.meeting?.duration_sec;
   const language = meetingDetail?.meeting?.language;
+
+  // Full report (summary + important points + tasks + chat) as a PDF.
+  // Available on the upload-result page and on meetings loaded from history
+  // — both render this workspace.
+  const reportReady = Boolean(videoId && summary);
+  const handleDownloadReport = () => {
+    generateMeetingReportPDF({
+      summary,
+      messages,
+      filename: meetingDetail?.meeting?.filename || "",
+    });
+  };
 
   return (
     <div className="workspace">
@@ -205,6 +219,20 @@ function WorkspaceView({
                 <span className="panel-eyebrow">Meeting</span>
                 <span className="panel-heading">Details</span>
               </div>
+              {reportReady && (
+                <button
+                  className="btn-download"
+                  onClick={handleDownloadReport}
+                  title="Download full report as PDF"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  PDF Report
+                </button>
+              )}
             </div>
           </div>
           <div className="info-section">
